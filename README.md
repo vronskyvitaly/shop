@@ -38,8 +38,14 @@ Port Visibility → Public. Или `cloudflared tunnel --url http://localhost:30
 
 Тесты сервера: `npm run test:e2e` (отдельная база из `TEST_DATABASE_URL`, очищается перед запуском).
 
-На проде сервер подключается к PostgreSQL в Coolify: `DATABASE_URL` задаётся в переменных окружения Coolify,
-миграции — `npx prisma migrate deploy`.
+## Деплой (Coolify, Docker)
+
+У `server/` и `client/` свои `Dockerfile`; в Coolify — два приложения с Base Directory `/server` и `/client`.
+
+- **server** — https://shopserver.vronskyvitaly.ru, порт 4500. При старте контейнер применяет миграции
+  (`prisma migrate deploy`). Переменные: `DATABASE_URL` (PostgreSQL в Coolify), `CLIENT_URL`, `JWT_*`, `ADMIN_*`.
+- **client** — https://shopclient.vronskyvitaly.ru, порт 3003 (Next `output: 'standalone'`).
+  `API_PROXY_TARGET` и `NEXT_PUBLIC_API_URL` нужны на этапе сборки (build-переменные).
 
 ## Архитектура
 

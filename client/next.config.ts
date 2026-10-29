@@ -7,7 +7,8 @@ const API_PROXY_TARGET = process.env.API_PROXY_TARGET;
 if (!API_PROXY_TARGET) throw new Error('Не задан API_PROXY_TARGET в client/.env (см. .env.example)');
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Минимальный сервер (.next/standalone) для Docker-образа
+  output: 'standalone',
   cacheComponents: true,
   partialPrefetching: true,
   reactCompiler: true,
