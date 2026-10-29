@@ -1,0 +1,43 @@
+# Общие правила для всего репозитория. Свои дополнения — в server/ и client_for-*/.gitignore
+
+# Зависимости и сборки
+node_modules/
+dist/
+build/
+out/
+.next/
+coverage/
+*.tsbuildinfo
+
+# Секреты: настоящие значения только локально и в Coolify, в git — только .env.example
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Логи
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Система и редакторы
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+
+# Личные заметки и список задач — только локально
+PROJECT_TASKS.md
+
+# Локальный Claude
+.claude
+.claude/
+.claude/settings.local.json
+
+# Скриншоты и снимки страниц от браузера Playwright (проверки Claude)
+.playwright-mcp/

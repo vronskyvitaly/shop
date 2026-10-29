@@ -1,0 +1,326 @@
+// Prisma schema: https://pris.ly/d/prisma-schema
+// Интернет-магазин: каталог, корзина, избранное, заказы, отзывы, роли (админ / покупатель)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+  PICKER // сборщик на складе (модуль warehouse)
+  COURIER // курьер (модуль delivery)
+}
+
+// Жизненный цикл заказа: PENDING → CONFIRMED → ASSEMBLING → SHIPPED → DELIVERED, или CANCELLED
+enum OrderStatus {
+  PENDING // оформлен
+  CONFIRMED // подтверждён магазином
+  ASSEMBLING // собирается на складе
+  SHIPPED // передан в доставку
+  DELIVERED // получен
+  CANCELLED // отменён
+}
+
+enum DeliveryMethod {
+  COURIER // курьером
+  PICKUP // пункт выдачи
+}
+
+enum PaymentMethod {
+  CARD_ONLINE // картой онлайн (пока имитация оплаты)
+  CASH_ON_DELIVERY // при получении
+}
+
+model User {
+  id        Int        @id @default(autoincrement())
+  email     String     @unique
+  name      String?
+  password  String
+  role      Role       @default(USER)
+  sessions  Session[]
+  cartItems CartItem[]
+  favorites Favorite[]
+  orders    Order[]
+  reviews   Review[]
+  addresses Address[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+// Одна запись на устройство/вход: хранит хеш refresh-токена
+model Session {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model Category {
+  id        Int       @id @default(autoincrement())
+  name      String    @unique
+  // Имя иконки-заглушки (см. src/catalog/icons.ts). Картинки появятся вместе с S3
+  icon      String
+  products  Product[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Product {
+  id           Int         @id @default(autoincrement())
+  title        String
+  description  String
+  brand        String?
+  // Цены в рублях, целые: дробные копейки в Float дают ошибки округления
+  price        Int
+  oldPrice     Int? // цена до скидки: если больше price, показываем скидку
+  stock        Int         @default(0) // сколько штук на складе
+  icon         String // иконка-заглушка вместо фото
+  isActive     Boolean     @default(true) // скрытый товар не виден в каталоге, но остаётся в старых заказах
+  // Название + бренд в нижнем регистре: SQLite сравнивает кириллицу с учётом регистра,
+  // поэтому ищем по этому полю (заполняет ProductsService), а не по title
+  searchText   String      @default("")
+  // Денормализованные счётчики: пересчитываются при отзыве / заказе, чтобы не считать на каждый запрос каталога
+  rating       Float       @default(0)
+  reviewsCount Int         @default(0)
+  salesCount   Int         @default(0) // для сортировки «Популярные»
+  categoryId   Int
+  category     Category    @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  cartItems    CartItem[]
+  favorites    Favorite[]
+  orderItems   OrderItem[]
+  reviews      Review[]
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@index([categoryId])
+}
+
+model CartItem {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId Int
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  quantity  Int
+  createdAt DateTime @default(now())
+
+  // Один товар — одна строка корзины, повторное добавление увеличивает quantity
+  @@unique([userId, productId])
+}
+
+model Favorite {
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId Int
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([userId, productId])
+}
+
+// Сохранённый адрес доставки. Заказ хранит не ссылку, а копию (recipientName, phone, address),
+// поэтому правка или удаление адреса не меняет уже оформленные заказы
+model Address {
+  id            Int      @id @default(autoincrement())
+  userId        Int
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  label         String? // «Дом», «Работа»
+  recipientName String
+  phone         String
+  address       String
+  isDefault     Boolean  @default(false) // подставляется при оформлении заказа; у пользователя ровно один
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model Order {
+  id             Int                  @id @default(autoincrement())
+  userId         Int
+  user           User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status         OrderStatus          @default(PENDING)
+  itemsTotal     Int // сумма товаров
+  deliveryPrice  Int
+  total          Int // itemsTotal + deliveryPrice
+  deliveryMethod DeliveryMethod
+  paymentMethod  PaymentMethod
+  isPaid         Boolean              @default(false)
+  recipientName  String
+  phone          String
+  address        String
+  comment        String?
+  items          OrderItem[]
+  history        OrderStatusHistory[]
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  @@index([userId])
+  @@index([status])
+}
+
+// Снимок товара на момент заказа: цена и название не меняются, даже если товар потом отредактируют или удалят
+model OrderItem {
+  id        Int      @id @default(autoincrement())
+  orderId   Int
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId Int?
+  product   Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  title     String
+  icon      String
+  price     Int
+  quantity  Int
+
+  @@index([orderId])
+  @@index([productId])
+}
+
+model OrderStatusHistory {
+  id        Int         @id @default(autoincrement())
+  orderId   Int
+  order     Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  status    OrderStatus
+  comment   String?
+  createdAt DateTime    @default(now())
+
+  @@index([orderId])
+}
+
+// Рекламный баннер в карусели на главной. Пока без фото: цветная тема + иконка-заглушка
+model Banner {
+  id         Int       @id @default(autoincrement())
+  title      String
+  subtitle   String?
+  buttonText String? // текст кнопки; пусто — кнопки нет, кликабелен весь баннер
+  link       String // внутренний путь: /?categoryId=1, /product/12
+  color      String // тема из BANNER_COLORS (src/banners/banners.constants.ts)
+  icon       String // иконка из PRODUCT_ICONS
+  isActive   Boolean   @default(true)
+  position   Int       @default(0) // порядок в карусели, меньше — раньше
+  // Период показа (необязательно): акция сама появится и сама исчезнет
+  startsAt   DateTime?
+  endsAt     DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([isActive, position])
+}
+
+// Шаблоны ответов администратора: готовые причины отмены и комментарии к смене статуса
+model ReplyTemplate {
+  id        Int      @id @default(autoincrement())
+  title     String   @unique // короткое название на кнопке, например «Нет на складе»
+  text      String // текст, который увидит покупатель в истории заказа
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum ReviewStatus {
+  PENDING // ждёт модерации (новый или отредактированный)
+  APPROVED // одобрен — текущая версия опубликована
+  REJECTED // отклонён, причина в moderatorComment
+}
+
+// Отзыв проходит модерацию. rating/text — последняя версия от покупателя,
+// publishedRating/publishedText — одобренная версия, которую видят все.
+// Пока правка на модерации, на витрине остаётся прежняя одобренная версия
+model Review {
+  id               Int          @id @default(autoincrement())
+  userId           Int
+  user             User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId        Int
+  product          Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+  rating           Int // 1–5
+  text             String
+  status           ReviewStatus @default(PENDING)
+  publishedRating  Int?
+  publishedText    String?
+  publishedAt      DateTime?
+  moderatorComment String? // причина отклонения — её видит автор
+  moderatedAt      DateTime?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @default(now()) @updatedAt
+
+  // Один отзыв от покупателя на товар
+  @@unique([userId, productId])
+  @@index([productId])
+  @@index([status])
+}
+
+// ───────── Склад (src/warehouse) и доставка (src/delivery) ─────────
+// Свои таблицы модулей. orderId и id сотрудников — просто числа, без связей с Order и User:
+// модули узнают о заказах только из событий (src/events), как отдельные сервисы со своей базой.
+// Нужные данные заказа (состав, адрес) копируются в задание в момент события
+
+enum PickStatus {
+  NEW // ждёт сборщика
+  IN_PROGRESS // сборщик собирает
+  DONE // собран, передан в доставку
+  CANCELLED // заказ отменили
+}
+
+model PickTask {
+  id         Int            @id @default(autoincrement())
+  orderId    Int            @unique
+  status     PickStatus     @default(NEW)
+  pickerId   Int?
+  pickerName String?
+  items      PickTaskItem[]
+  createdAt  DateTime       @default(now())
+  startedAt  DateTime?
+  doneAt     DateTime?
+
+  @@index([status])
+}
+
+model PickTaskItem {
+  id       Int      @id @default(autoincrement())
+  taskId   Int
+  task     PickTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  title    String
+  icon     String
+  quantity Int
+
+  @@index([taskId])
+}
+
+enum DeliveryStatus {
+  WAITING // заказ ещё собирают
+  READY // собран — курьер может забрать
+  IN_TRANSIT // курьер везёт
+  DELIVERED // вручён
+  CANCELLED // заказ отменили
+}
+
+model DeliveryTask {
+  id             Int            @id @default(autoincrement())
+  orderId        Int            @unique
+  status         DeliveryStatus @default(WAITING)
+  courierId      Int?
+  courierName    String?
+  deliveryMethod DeliveryMethod
+  address        String
+  recipientName  String
+  phone          String
+  comment        String?
+  itemsCount     Int
+  total          Int
+  cashToCollect  Int // сколько взять с покупателя: 0, если оплачено онлайн
+  createdAt      DateTime       @default(now())
+  takenAt        DateTime?
+  deliveredAt    DateTime?
+
+  @@index([status])
+  @@index([courierId])
+}
+

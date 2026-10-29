@@ -1,0 +1,13 @@
+@import 'tailwindcss';
+
+@theme inline {
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+/* Светлая тема, как у маркетплейсов: серый фон страницы, белые карточки */
+body {
+  background: var(--color-zinc-100);
+  color: var(--color-zinc-900);
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}

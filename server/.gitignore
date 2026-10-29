@@ -1,0 +1,11 @@
+node_modules
+dist
+
+# Keep environment variables out of version control
+.env
+
+# Local SQLite database
+prisma/dev.db*
+
+# Тестовая база e2e (пересоздаётся при каждом запуске)
+prisma/test.db*
