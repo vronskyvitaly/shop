@@ -3,7 +3,8 @@
 FROM node:24-slim AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci
+# --include=dev: tailwind, typescript и плагины сборки — devDependencies, а NODE_ENV может прийти production
+RUN npm ci --include=dev
 
 FROM node:24-slim AS build
 WORKDIR /app

@@ -5,7 +5,8 @@ WORKDIR /app
 RUN apt-get update -y && apt-get install -y --no-install-recommends openssl && rm -rf /var/lib/apt/lists/*
 COPY package.json package-lock.json ./
 COPY prisma ./prisma
-RUN npm ci
+# --include=dev: Coolify передаёт NODE_ENV=production и на сборку, а nest CLI и prisma — devDependencies
+RUN npm ci --include=dev
 COPY . .
 RUN npx prisma generate && npm run build
 
