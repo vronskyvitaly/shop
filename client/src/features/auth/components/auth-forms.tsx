@@ -3,7 +3,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
 import { Field } from '@/components/ui/field';
 import { FormError } from '@/components/ui/form-error';
@@ -73,11 +73,13 @@ export function RegisterForm() {
   const {
     register,
     handleSubmit,
+    control,
     formState: { errors },
   } = useForm<RegisterValues>({
     resolver: zodResolver(registerSchema),
-    defaultValues: { email: '', name: '', password: '', confirmPassword: '' },
+    defaultValues: { email: '', name: '', password: '', confirmPassword: '', demoAccepted: false },
   });
+  const demoAccepted = useWatch({ control, name: 'demoAccepted' });
 
   const onSubmit = async (values: RegisterValues) => {
     const result = await registerUser(values);
@@ -104,7 +106,22 @@ export function RegisterForm() {
         error={errors.confirmPassword?.message}
         {...register('confirmPassword')}
       />
-      <Button type="submit" size="lg" loading={isLoading}>
+      {/* Без согласия аккаунт не создать: кнопка неактивна, схема тоже не пропустит */}
+      <div className="flex flex-col gap-1">
+        <label className="flex cursor-pointer items-start gap-2.5 text-sm leading-snug text-zinc-600">
+          <input
+            type="checkbox"
+            className="mt-0.5 size-4 shrink-0 accent-blue-600"
+            aria-invalid={Boolean(errors.demoAccepted)}
+            {...register('demoAccepted')}
+          />
+          <span>
+            Я понимаю, что это демо-версия: товары, цены и заказы вымышлены, а разработчик не несёт ответственности
+          </span>
+        </label>
+        {errors.demoAccepted && <p className="text-xs text-rose-600">{errors.demoAccepted.message}</p>}
+      </div>
+      <Button type="submit" size="lg" loading={isLoading} disabled={!demoAccepted}>
         Создать аккаунт
       </Button>
       <p className="text-center text-sm text-zinc-500">

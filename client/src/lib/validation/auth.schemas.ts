@@ -14,6 +14,8 @@ export const registerSchema = z
     name: z.string().trim().min(1, 'Введите имя').max(50, 'Не больше 50 символов'),
     password: z.string().min(8, 'Минимум 8 символов').max(72, 'Не больше 72 символов'),
     confirmPassword: z.string(),
+    // Согласие, что магазин демо (блок под формой). Только для формы — на сервер не уходит
+    demoAccepted: z.boolean().refine(Boolean, 'Подтвердите, что понимаете: это демо-версия'),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: 'Пароли не совпадают',
