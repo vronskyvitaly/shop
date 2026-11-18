@@ -206,7 +206,7 @@ function CheckoutForm({ cart, userName, addresses }: { cart: Cart; userName: str
                       placeholder="Название: Дом, Работа…"
                       aria-label="Название адреса"
                       maxLength={30}
-                      className="h-9 rounded-lg border border-zinc-300 bg-white px-3 text-sm sm:w-56"
+                      className="h-9 rounded-lg border border-zinc-300 bg-white px-3 text-base sm:w-56 sm:text-sm"
                     />
                   )}
                 </div>

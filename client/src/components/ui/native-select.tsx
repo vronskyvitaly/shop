@@ -7,7 +7,7 @@ export function NativeSelect({ className = '', ...props }: ComponentProps<'selec
   return (
     <div className={`relative ${className}`}>
       <select
-        className="h-10 w-full cursor-pointer appearance-none rounded-xl border border-zinc-300 bg-white pr-10 pl-3 text-sm transition outline-none hover:border-zinc-400 focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15 aria-[invalid=true]:border-rose-500"
+        className="h-10 w-full cursor-pointer appearance-none rounded-xl border border-zinc-300 bg-white pr-10 pl-3 text-base transition outline-none hover:border-zinc-400 focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15 aria-[invalid=true]:border-rose-500 sm:text-sm"
         {...props}
       />
       <ChevronDown

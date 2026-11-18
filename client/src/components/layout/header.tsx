@@ -126,7 +126,7 @@ function SearchForm() {
         onChange={(event) => setValue(event.target.value)}
         placeholder="Искать на Маркете"
         aria-label="Поиск товаров"
-        className="h-full min-w-0 flex-1 rounded-l-xl px-3 text-sm outline-none"
+        className="h-full min-w-0 flex-1 rounded-l-xl px-3 text-base outline-none sm:text-sm"
       />
       {value && (
         <button

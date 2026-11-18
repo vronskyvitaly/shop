@@ -4,9 +4,10 @@ import { Eye, EyeOff } from 'lucide-react';
 import { type ComponentProps, type ReactNode, useState } from 'react';
 import { NativeSelect } from './native-select';
 
-// Светлое поле: при наведении темнее рамка, в фокусе — белый фон и мягкое синее свечение
+// Светлое поле: при наведении темнее рамка, в фокусе — белый фон и мягкое синее свечение.
+// На телефоне шрифт 16px: с меньшим iOS Safari увеличивает страницу при фокусе на поле
 const control =
-  'w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 text-sm outline-none transition placeholder:text-zinc-400 hover:border-zinc-300 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 aria-[invalid=true]:border-rose-400 aria-[invalid=true]:focus:ring-rose-500/10';
+  'w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 text-base sm:text-sm outline-none transition placeholder:text-zinc-400 hover:border-zinc-300 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 aria-[invalid=true]:border-rose-400 aria-[invalid=true]:focus:ring-rose-500/10';
 
 function Wrapper({
   label,

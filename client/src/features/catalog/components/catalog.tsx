@@ -210,7 +210,7 @@ function Filters({
             aria-label="Цена от"
             value={minPrice}
             onChange={(event) => setMinPrice(event.target.value)}
-            className="h-10 w-full min-w-0 rounded-xl border border-zinc-300 px-3 text-sm"
+            className="h-10 w-full min-w-0 rounded-xl border border-zinc-300 px-3 text-base sm:text-sm"
           />
           <input
             type="number"
@@ -220,7 +220,7 @@ function Filters({
             aria-label="Цена до"
             value={maxPrice}
             onChange={(event) => setMaxPrice(event.target.value)}
-            className="h-10 w-full min-w-0 rounded-xl border border-zinc-300 px-3 text-sm"
+            className="h-10 w-full min-w-0 rounded-xl border border-zinc-300 px-3 text-base sm:text-sm"
           />
         </div>
         <Button type="submit" variant="secondary" size="sm">
