@@ -5,17 +5,38 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm, useWatch } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
-import { Field } from '@/components/ui/field';
+import { Field, PasswordField } from '@/components/ui/field';
 import { FormError } from '@/components/ui/form-error';
 import { getErrorMessage } from '@/lib/api/errors';
 import { loginSchema, registerSchema, type LoginValues, type RegisterValues } from '@/lib/validation/auth.schemas';
 import { useLoginMutation, useRegisterMutation } from '../api';
+import { PasswordChecks } from './password-checks';
 
-// Куда вернуться после входа: ?next=/cart. Только внутренние пути — иначе
-// ссылка вида /login?next=https://evil.site увела бы пользователя на чужой сайт
-function useNext() {
+// Заголовок формы с короткой подписью
+function FormTitle({ title, subtitle }: { title: string; subtitle: string }) {
+  return (
+    <div className="flex flex-col gap-1 pr-8">
+      <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
+      <p className="text-sm text-zinc-500">{subtitle}</p>
+    </div>
+  );
+}
+
+// inModal — форма открыта модалкой поверх страницы (app/@auth/(.)login, (.)register)
+type AuthFormProps = { inModal?: boolean };
+
+// Куда уйти после входа. ?next=/cart — туда (только внутренние пути, иначе
+// ссылка вида /login?next=https://evil.site увела бы пользователя на чужой сайт).
+// Без ?next: из модалки — закрыть её и остаться на странице под ней, со страницы /login — на главную
+function useAfterAuth(inModal: boolean) {
+  const router = useRouter();
   const next = useSearchParams().get('next');
-  return next?.startsWith('/') && !next.startsWith('//') ? next : '/';
+  const safeNext = next?.startsWith('/') && !next.startsWith('//') ? next : null;
+  return () => {
+    if (safeNext) router.replace(safeNext);
+    else if (inModal) router.back();
+    else router.replace('/');
+  };
 }
 
 // Ссылка на соседнюю форму с тем же ?next
@@ -24,9 +45,8 @@ function useSwitchHref(path: string) {
   return next ? `${path}?next=${encodeURIComponent(next)}` : path;
 }
 
-export function LoginForm() {
-  const router = useRouter();
-  const next = useNext();
+export function LoginForm({ inModal = false }: AuthFormProps) {
+  const afterAuth = useAfterAuth(inModal);
   const registerHref = useSwitchHref('/register');
   const [login, { isLoading, isError, error }] = useLoginMutation();
   const {
@@ -37,17 +57,23 @@ export function LoginForm() {
 
   const onSubmit = async (values: LoginValues) => {
     const result = await login(values);
-    if (!result.error) router.replace(next); // ошибку покажет FormError
+    if (!result.error) afterAuth(); // ошибку покажет FormError
   };
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4" noValidate>
-      <h1 className="text-2xl font-bold">Вход</h1>
+      <FormTitle title="Вход" subtitle="Войдите, чтобы оформлять заказы и следить за ними" />
       <FormError message={isError ? getErrorMessage(error) : undefined} />
-      <Field label="Email" type="email" autoComplete="email" error={errors.email?.message} {...register('email')} />
       <Field
+        label="Email"
+        type="email"
+        autoComplete="email"
+        placeholder="you@example.com"
+        error={errors.email?.message}
+        {...register('email')}
+      />
+      <PasswordField
         label="Пароль"
-        type="password"
         autoComplete="current-password"
         error={errors.password?.message}
         {...register('password')}
@@ -55,9 +81,10 @@ export function LoginForm() {
       <Button type="submit" size="lg" loading={isLoading}>
         Войти
       </Button>
+      {/* В модалке replace: «Назад» закрывает модалку, а не возвращает к соседней форме */}
       <p className="text-center text-sm text-zinc-500">
         Нет аккаунта?{' '}
-        <Link href={registerHref} className="font-medium text-blue-600 hover:underline">
+        <Link href={registerHref} replace={inModal} className="font-medium text-blue-600 hover:underline">
           Зарегистрироваться
         </Link>
       </p>
@@ -65,9 +92,8 @@ export function LoginForm() {
   );
 }
 
-export function RegisterForm() {
-  const router = useRouter();
-  const next = useNext();
+export function RegisterForm({ inModal = false }: AuthFormProps) {
+  const afterAuth = useAfterAuth(inModal);
   const loginHref = useSwitchHref('/login');
   const [registerUser, { isLoading, isError, error }] = useRegisterMutation();
   const {
@@ -79,36 +105,51 @@ export function RegisterForm() {
     resolver: zodResolver(registerSchema),
     defaultValues: { email: '', name: '', password: '', confirmPassword: '', demoAccepted: false },
   });
-  const demoAccepted = useWatch({ control, name: 'demoAccepted' });
+  const [password, confirmPassword, demoAccepted] = useWatch({
+    control,
+    name: ['password', 'confirmPassword', 'demoAccepted'],
+  });
 
   const onSubmit = async (values: RegisterValues) => {
     const result = await registerUser(values);
-    if (!result.error) router.replace(next);
+    if (!result.error) afterAuth();
   };
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4" noValidate>
-      <h1 className="text-2xl font-bold">Регистрация</h1>
+      <FormTitle title="Регистрация" subtitle="Пара полей — и можно собирать корзину" />
       <FormError message={isError ? getErrorMessage(error) : undefined} />
-      <Field label="Имя" autoComplete="name" error={errors.name?.message} {...register('name')} />
-      <Field label="Email" type="email" autoComplete="email" error={errors.email?.message} {...register('email')} />
       <Field
+        label="Имя"
+        autoComplete="name"
+        placeholder="Как к вам обращаться"
+        error={errors.name?.message}
+        {...register('name')}
+      />
+      <Field
+        label="Email"
+        type="email"
+        autoComplete="email"
+        placeholder="you@example.com"
+        error={errors.email?.message}
+        {...register('email')}
+      />
+      <PasswordField
         label="Пароль"
-        type="password"
         autoComplete="new-password"
         error={errors.password?.message}
         {...register('password')}
       />
-      <Field
+      <PasswordField
         label="Повторите пароль"
-        type="password"
         autoComplete="new-password"
         error={errors.confirmPassword?.message}
         {...register('confirmPassword')}
       />
+      <PasswordChecks password={password} confirm={confirmPassword} />
       {/* Без согласия аккаунт не создать: кнопка неактивна, схема тоже не пропустит */}
       <div className="flex flex-col gap-1">
-        <label className="flex cursor-pointer items-start gap-2.5 text-sm leading-snug text-zinc-600">
+        <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-xs leading-relaxed text-zinc-600 transition hover:border-zinc-300 has-checked:border-blue-200 has-checked:bg-blue-50/60">
           <input
             type="checkbox"
             className="mt-0.5 size-4 shrink-0 accent-blue-600"
@@ -116,7 +157,8 @@ export function RegisterForm() {
             {...register('demoAccepted')}
           />
           <span>
-            Я понимаю, что это демо-версия: товары, цены и заказы вымышлены, а разработчик не несёт ответственности
+            Я понимаю, что это демо-магазин: товары и цены вымышлены, заказы никто не доставит, а оплата только
+            имитируется. Разработчик не несёт ответственности
           </span>
         </label>
         {errors.demoAccepted && <p className="text-xs text-rose-600">{errors.demoAccepted.message}</p>}
@@ -124,9 +166,12 @@ export function RegisterForm() {
       <Button type="submit" size="lg" loading={isLoading} disabled={!demoAccepted}>
         Создать аккаунт
       </Button>
+      <p className="-mt-2 text-center text-xs text-zinc-400">
+        Не вводите настоящие данные карт и пароли от других сервисов
+      </p>
       <p className="text-center text-sm text-zinc-500">
         Уже есть аккаунт?{' '}
-        <Link href={loginHref} className="font-medium text-blue-600 hover:underline">
+        <Link href={loginHref} replace={inModal} className="font-medium text-blue-600 hover:underline">
           Войти
         </Link>
       </p>

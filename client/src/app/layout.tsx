@@ -15,7 +15,8 @@ export const metadata: Metadata = {
   description: 'Интернет-магазин на NestJS и Next.js',
 };
 
-export default function RootLayout({ children }: LayoutProps<'/'>) {
+// auth — параллельный слот app/@auth: модалки входа и регистрации поверх текущей страницы
+export default function RootLayout({ children, auth }: LayoutProps<'/'>) {
   return (
     <html lang="ru" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
       {/* suppressHydrationWarning: расширения браузера дописывают атрибуты в <body> до гидратации */}
@@ -28,6 +29,7 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
             <RealtimeSync />
           </Suspense>
           <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-4 py-6">{children}</main>
+          {auth}
           <Toaster />
         </Providers>
       </body>

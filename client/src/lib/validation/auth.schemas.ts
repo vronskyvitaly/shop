@@ -3,6 +3,10 @@ import { z } from 'zod';
 // Правила совпадают с DTO на сервере (CreateUserDto, LoginDto),
 // чтобы ошибки показывались сразу в форме, а не после запроса
 
+// Длина пароля — как @MinLength / @MaxLength в CreateUserDto. Их же показывает PasswordChecks
+export const PASSWORD_MIN = 8;
+export const PASSWORD_MAX = 72;
+
 export const loginSchema = z.object({
   email: z.email('Введите корректный email'),
   password: z.string().min(1, 'Введите пароль').max(72, 'Не больше 72 символов'),
@@ -12,7 +16,10 @@ export const registerSchema = z
   .object({
     email: z.email('Введите корректный email'),
     name: z.string().trim().min(1, 'Введите имя').max(50, 'Не больше 50 символов'),
-    password: z.string().min(8, 'Минимум 8 символов').max(72, 'Не больше 72 символов'),
+    password: z
+      .string()
+      .min(PASSWORD_MIN, `Минимум ${PASSWORD_MIN} символов`)
+      .max(PASSWORD_MAX, `Не больше ${PASSWORD_MAX} символов`),
     confirmPassword: z.string(),
     // Согласие, что магазин демо (блок под формой). Только для формы — на сервер не уходит
     demoAccepted: z.boolean().refine(Boolean, 'Подтвердите, что понимаете: это демо-версия'),
